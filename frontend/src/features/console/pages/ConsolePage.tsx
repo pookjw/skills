@@ -978,7 +978,7 @@ export function ConsolePage() {
               <div className="page-title">Projects</div>
             </div>
 
-            {selectedRepoId ? (
+            {state.selectedRepoId ? (
               <div className="projects-container">
                 {selectedRepoProjects.map((project) => (
                   <div key={project.id} className="project-card">
