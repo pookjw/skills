@@ -185,7 +185,9 @@ model WorkItem {
   // 중복 그룹 내 포함 관계 엔트리.
   duplicateEntries DuplicateGroupItem[]
 
-  // 저장소별 Issue/PR 중복 저장 방지.
+  // 저장소별 GitHub 원본 ID와 타입 기준 중복 저장 방지.
+  @@unique([repositoryId, githubIssueId, type])
+  // 저장소별 Issue/PR 번호 조회 보조 인덱스.
   @@unique([repositoryId, type, number])
 }
 

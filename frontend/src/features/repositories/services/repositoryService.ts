@@ -3,7 +3,6 @@ import type {
   PriorityItem,
   DuplicateGroup,
   LabelRecommendationItem,
-  AnalyzeRepositoryResponse,
 } from '@/shared/types/api';
 import type { DashboardItem } from '@/shared/types/domain';
 import { repositoryApi } from '../api/repository.api';
@@ -45,16 +44,17 @@ export class RepositoryService {
 
   // Fetch all repository data
   static async fetchRepositoryData(repoId: number) {
-    const [itemsResponse, prioritiesResponse, duplicatesResponse, labelsResponse] =
+    const [issuesResponse, prsResponse, prioritiesResponse, duplicatesResponse, labelsResponse] =
       await Promise.all([
-        repositoryApi.listRepoItems(repoId, {}),
+        repositoryApi.listRepoItems(repoId, { type: 'ISSUE', state: 'OPEN', limit: 100 }),
+        repositoryApi.listRepoItems(repoId, { type: 'PULL_REQUEST', state: 'OPEN', limit: 100 }),
         repositoryApi.getPriorities(repoId),
         repositoryApi.getDuplicates(repoId),
         repositoryApi.getLabelRecommendations(repoId),
       ]);
 
     return {
-      items: itemsResponse.items,
+      items: [...issuesResponse.items, ...prsResponse.items],
       priorities: prioritiesResponse.items,
       duplicates: duplicatesResponse.groups,
       recommendations: labelsResponse.items,

@@ -131,10 +131,10 @@ export class RepositoriesService {
 
     await this.prisma.workItem.upsert({
       where: {
-        repositoryId_type_number: {
+        repositoryId_githubIssueId_type: {
           repositoryId,
+          githubIssueId: String(entry.id),
           type,
-          number: entry.number,
         },
       },
       update: {
