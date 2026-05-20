@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS "WorkItem" (
   FOREIGN KEY ("repositoryId") REFERENCES "ConnectedRepository"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS "WorkItem_repositoryId_githubIssueId_type_key" ON "WorkItem"("repositoryId", "githubIssueId", "type");
 CREATE UNIQUE INDEX IF NOT EXISTS "WorkItem_repositoryId_type_number_key" ON "WorkItem"("repositoryId", "type", "number");
 
 CREATE TABLE IF NOT EXISTS "AnalysisResult" (
