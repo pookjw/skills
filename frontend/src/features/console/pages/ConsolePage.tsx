@@ -191,6 +191,16 @@ export function ConsolePage() {
     }
   }
 
+  async function startRepositorySync(repoId: number) {
+    stopSyncPolling();
+    const job = await repositoryApi.startSyncJob(repoId);
+    state.setSyncJob(job);
+    state.setNotice('sync 시작: GitHub issues/PR을 가져오는 중입니다.');
+    syncPollingTimerRef.current = window.setTimeout(() => {
+      void pollSyncJob(repoId, job.jobId);
+    }, 700);
+  }
+
   async function loadHealth() {
     try {
       await authApi.getHealth();
@@ -281,11 +291,10 @@ export function ConsolePage() {
       const connected = await repositoryApi.connectRepo(trimmed);
       const nextRepoId = await loadConnectedRepos(connected.id);
       if (nextRepoId) {
-        await refreshRepositoryData(nextRepoId);
+        await startRepositorySync(nextRepoId);
       }
       state.setConnectFullName('');
       state.setShowAddRepoForm(false);
-      state.setNotice(`저장소 연결 완료: ${trimmed}`);
     });
   }
 
@@ -418,6 +427,27 @@ export function ConsolePage() {
   const syncProgressPercent =
     state.syncJob?.progressPercent ??
     (state.syncJob?.status === 'SUCCEEDED' ? 100 : state.syncJob?.status === 'FAILED' ? 0 : 35);
+  const repoHasNeverSynced = Boolean(selectedRepo && !selectedRepo.lastSyncedAt && !syncJobRunning);
+  const syncFailedMessage = state.syncJob?.status === 'FAILED' ? state.syncJob.errorMessage : null;
+
+  function renderEmptyList(kind: 'issues' | 'pull requests') {
+    let message = `No ${kind} found`;
+    if (!selectedRepo) {
+      message = 'Repository를 먼저 선택하세요';
+    } else if (syncJobRunning) {
+      message = `GitHub ${kind}를 가져오는 중입니다`;
+    } else if (syncFailedMessage) {
+      message = `Sync failed: ${syncFailedMessage}`;
+    } else if (repoHasNeverSynced) {
+      message = '아직 sync된 데이터가 없습니다. Repository 화면에서 Sync Issues/PRs를 실행하세요.';
+    }
+
+    return (
+      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text2)' }}>
+        {message}
+      </div>
+    );
+  }
 
   // Render functions
   function renderListItem(item: DashboardItem) {
@@ -757,9 +787,7 @@ export function ConsolePage() {
               {filteredIssues.length > 0 ? (
                 filteredIssues.map((item) => renderListItem(item))
               ) : (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text2)' }}>
-                  No issues found
-                </div>
+                renderEmptyList('issues')
               )}
             </div>
           </div>
@@ -805,9 +833,7 @@ export function ConsolePage() {
               {filteredPrs.length > 0 ? (
                 filteredPrs.map((item) => renderListItem(item))
               ) : (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text2)' }}>
-                  No pull requests found
-                </div>
+                renderEmptyList('pull requests')
               )}
             </div>
           </div>
@@ -937,7 +963,18 @@ export function ConsolePage() {
               </div>
 
               {state.selectedRepoId && (
-                <div style={{ marginTop: 20 }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                  <button
+                    className="btn-add"
+                    disabled={syncJobRunning}
+                    onClick={() =>
+                      void withAction('sync', async () => {
+                        await startRepositorySync(state.selectedRepoId!);
+                      })
+                    }
+                  >
+                    {syncJobRunning ? 'Syncing...' : 'Sync Issues/PRs'}
+                  </button>
                   <button className="btn-add" onClick={() => void analyzeRepo(state.selectedRepoId!)}>
                     📊 Analyze
                   </button>
@@ -956,7 +993,7 @@ export function ConsolePage() {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="owner/repo"
+                    placeholder="owner/repo or GitHub URL"
                     value={state.connectFullName}
                     onChange={(e) => state.setConnectFullName(e.target.value)}
                   />
@@ -978,7 +1015,7 @@ export function ConsolePage() {
               <div className="page-title">Projects</div>
             </div>
 
-            {selectedRepoId ? (
+            {state.selectedRepoId ? (
               <div className="projects-container">
                 {selectedRepoProjects.map((project) => (
                   <div key={project.id} className="project-card">
